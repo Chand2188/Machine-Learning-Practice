@@ -1,0 +1,184 @@
+# Install the required packages
+install.packages("pastecs")
+install.packages("gmodels")
+install.packages("ggplot2")
+install.packages("mlr")   #For missing value imputation
+install.packages("car")
+install.packages("rpart")
+install.packages("rpart.plot")
+install.packages("pbkrtest")
+install.packages("iterators")
+install.packages("kernlab")
+install.packages("caret")
+
+
+#Load the required packages
+library(pastecs)
+library(gmodels)
+library(ggplot2)
+library(mlr)
+library(car)
+library(rpart)
+library(rpart.plot)
+library(pbkrtest)
+library(iterators)
+library(kernlab)
+library(caret)
+
+
+#1. Loading the Data:
+#Map working directory
+setwd("D:/Data/Imarticus/Dataset")
+
+#Read/Load the Train & Test data
+Train_File <- read.csv("Train_File.csv")
+Test_File <- read.csv("Test_File.csv")
+
+View(Train_File)
+View(Test_File)
+colnames(Train_File)
+colnames(Train_File)[1] <- "ID"   # to change the column name from 'ï..ID' to 'ID'
+colnames(Test_File)[1] <- "ID"
+
+#2. Univariate Analysis:
+# Look the data type of each column
+str(Train_File)
+
+#Group Continuous & catagorical variables
+Train_Cont <- subset(Train_File, select = c(ID, Age, Hours.Per.Week))
+Train_Cat <- subset(Train_File, select = -c(ID, Age, Hours.Per.Week))
+
+# Summary of all continuous variables
+summary(Train_Cont)
+
+#set significant digits and detailed summary
+options(scipen = 100)
+options(digits = 2)
+stat.desc(Train_Cont)
+
+#For categorical data
+apply(Train_Cat, 2, function(x){length(unique(x))})
+
+
+#print the counts of each category
+table(Train_Cat$Race)
+
+#print the percentage of observation in each category
+as.matrix(prop.table(table(Train_Cat$Race)))
+
+#Analyzing native country
+head(sort(table(Train_Cat$Native.Country), decreasing = TRUE), 20)
+
+#print percentage of observations of top 20 country
+head(round(sort(prop.table(table(Train_Cat$Native.Country)), decreasing = TRUE), 6), 20)
+
+# 3. Multivariate Analysis:
+summary(Train_Cont$Age)
+CrossTable(Train_File$Sex, Train_File$Income.Group)
+
+#Plot a stacked bar chart for Sex vs Income Group, both catagorical
+ggplot(Train_File, aes(Sex, fill = Train_File$Income.Group)) + geom_bar() + labs(title = "Stacked Bar Chart", x = "Sex", y = "Count") + theme_bw()
+
+#Plot a scattered chart for Age vs Hours.Per.Week, both Continuous
+plot(Train_File$Age, Train_File$Hours.Per.Week, main = "Scatterplot of Age vs Hours Per Week", xlab = "Age", ylab = "Hours Per Week")
+
+#Plot a boxplot for Gender vs Hours Per Week, Categorical & Continuous
+ggplot(Train_File, aes(Sex, Hours.Per.Week)) + geom_boxplot() + labs(title = "Boxplot")
+
+
+# 4. Checking missing Value in the dataset
+table(is.na(Train_File))
+
+# Check missing value columnwise
+colSums(is.na(Train_File))
+
+colSums(is.na(Test_File))
+
+#Impute missing values with mode
+Imputed_Data <- impute(Train_File, classes = list(factor = imputeMode()))
+
+#Update train dataset with imputedvalues
+Train_File <- Imputed_Data$data
+View(Train_File)
+
+#Check again missing value columns
+colSums(is.na(Train_File))
+
+Imputed_Test_Data <- impute(Test_File, classes = list(factor = imputeMode()))
+Test_File <- Imputed_Test_Data$data
+
+colSums(is.na(Test_File))
+
+
+# 5. Outlier Treatment
+#Create a scatter plot()
+ggplot(Train_File, aes(ID, Age)) + geom_jitter()
+
+#scatter plot for Hours Per Week
+ggplot(Train_File, aes(ID, Hours.Per.Week)) + geom_jitter()
+
+
+# 6. Variable Transformation:
+sapply(Train_File, class)
+
+#Determine percentage of observation in each category
+as.matrix(prop.table(table(Train_File$Workclass)))
+
+#combining factor levels with ffew observations in a new Level named formats
+
+Train_File$Workclass <- recode(Train_File$Workclass, "c('State-gov', 'Self-emp-inc', 'Federal-gov', 'Without-pay', 'Never-worked') = 'Others'")
+Test_File$Workclass <- recode(Test_File$Workclass, "c('State-gov', 'Self-emp-inc', 'Federal-gov', 'Without-pay', 'Never-worked') = 'Others'")
+
+#Check factor level percentage now
+as.matrix(prop.table(table(Train_File$Workclass)))
+
+
+#7. Predictive Modelling: Data Preprocessing
+# Calculating number of records in dependent variable by grouping
+table(Train_File$Income.Group)
+
+Train_File$Income.Group <- ifelse(Train_File$Income.Group == '<=50K',0,1)
+Train_File
+
+#To check if the levels are encoded
+table(Train_File$Income.Group)
+
+#removing identifier variable from data
+Train_File <- subset(Train_File, select = -c(ID))
+
+
+# Building the Model:
+set.seed(333)
+
+#minsplit - refers to minimum no. of obs which must exist in a node to split
+#minbucket - refers to minimum no of obs which must exists in terminal node(leaf)
+#maxdepth - refers o depth of a tree
+#xval - refers to cross validation
+
+Train_File.tree <- rpart(Income.Group ~ ., data = Train_File, method = "class", control = rpart.control(minsplit = 20, minbucket = 100, maxdepth = 10, xval = 5))
+
+#summary of model
+summary(Train_File.tree)
+
+
+#Draw the tree
+rpart.plot(Train_File.tree)
+
+
+#Making predictions
+Prediction_Train_File <- predict(Train_File.tree, newdata = Train_File, type = "class")
+
+#predition for Test data
+Prediction_Test <- predict(Train_File.tree, newdata = Test_File, type = "class")
+
+
+#Analyze resuls:
+# for Train accuracy
+
+confusionMatrix(Prediction_Train_File, Train_File$Income.Group)
+
+#Creating data frame of final prediction
+Solution_frame <- data.frame(ID = Test_File$ID, Income.Group = Prediction_Test)
+
+# Writing solution file
+write.csv(Solution_frame, file = "final_solution.csv")
