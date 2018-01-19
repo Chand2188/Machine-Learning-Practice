@@ -1,0 +1,60 @@
+library(anytime)
+library(ggplot2)
+
+#To read the csv file
+Ted <- read.csv("D:/Data/Imarticus/Dataset/ted_main.csv")
+
+
+# To get all the column names from the dataset
+colnames(Ted)
+
+
+# To convert unix time stamp to human readable date format
+
+Ted$film_date = anytime(Ted$film_date)  
+
+Ted$published_date <- anytime(Ted$published_date)
+
+#Problem statement 1 :
+#TOP 10 Speakers  who has highest views for their videos
+
+#Selecting only title, name, Views & main speaker columns
+
+Ted_df1 <- data.frame(Ted$title,Ted$name,Ted$views,Ted$main_speaker)
+colnames(Ted_df1)
+
+
+# Sort the records by most viewd videos
+
+Ted_df1_viewed <- Ted_df1[order(-Ted_df1$Ted.views),]
+Ted_df1_viewed
+
+
+# Selecting only top 10 videos
+Top_10<- head(Ted_df1_viewed, 10)
+View(Top_10)
+
+
+# To plot Top 10 speakers who has highest views
+plot_Views <-ggplot(Top_10, aes(x= Ted.main_speaker, y=Ted.views , fill=Ted.main_speaker)) +
+  geom_bar(stat="identity")+theme_minimal()+ xlab('Speakers') +ylab('Views')+ ggtitle('Top 10 Frequently Appeared Speakers in all videos with 1M+ views')
+
+plot_Views
+
+
+
+
+
+# Problem Statement 2 :
+# To get the top 15 records of most discussed topic i.e. having most comments
+
+Ted_Comments <- Ted[order(-Ted$comments),]
+Ted_Top15 <- head(Ted_Comments, 15)
+Ted_Top15_df <- data.frame(Ted_Top15$comments,Ted_Top15$event,Ted_Top15$title,Ted_Top15$main_speaker)
+View(Ted_Top15_df)
+
+ggplot(Ted_Top15_df, aes(x = Ted_Top15_df$Ted_Top15.title, y = Ted_Top15_df$Ted_Top15.comments, fill = Ted_Top15.title))+
+  geom_bar(stat = 'identity')+theme_classic()+xlab('title')+ylab('comments')+ggtitle('Mosi discussed Topics')
+
+
+
