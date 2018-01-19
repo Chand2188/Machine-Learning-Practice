@@ -1,0 +1,42 @@
+install.packages("SnowballC")
+install.packages("tm")
+install.packages("stringr")
+install.packages("wordcloud")
+install.packages("NLP")
+install.packages("plyr")
+install.packages("syuzhet")
+library(SnowballC)
+library(tm)
+library(stringr)
+library(wordcloud)
+library(NLP)
+library(plyr)
+library(syuzhet)
+
+Trump1 <- readLines("D:/Data/Imarticus/Trump_Speech1.txt")  #To read the text file
+Trump1
+
+Trump_UnSpace <- paste(Trump1, " ") #To remove spaces
+Trump_UnSpace
+
+print(stopwords())
+
+Trump_rm <- removeWords(Trump_UnSpace, stopwords())
+Trump_rm
+
+bag_of_word <- str_split(Trump_rm, " ")
+bag_of_word
+
+bag_of_word1 <- unlist(bag_of_word)
+bag_of_word1
+
+Trump <- wordcloud(bag_of_word1, min.freq = 10,random.order = FALSE)
+
+Trump_Sentiments <- get_nrc_sentiment(Trump_UnSpace)  #To calculate sentiments
+Trump_Sentiments
+str(Trump_Sentiments)
+
+ab = as.matrix(Trump_Sentiments)  #Converting to matrix
+
+barplot(ab, main = 'Trump Speech Sentiment', xlab = 'Sentiment Breakup', ylab = 'Score', col = 'red')
+
